@@ -17,13 +17,35 @@ class TasksController extends Controller
      // getでtasks/にアクセスされた場合の「一覧表示処理」
     public function index()
     {
-        // メッセージ一覧を取得
-        $tasks = Task::all();
+        // // メッセージ一覧を取得
+        // $tasks = Task::all();
 
-        // メッセージ一覧ビューでそれを表示
-        return view('tasks.index', [
-            'tasks' => $tasks,
-        ]);    }
+        // // メッセージ一覧ビューでそれを表示
+        // return view('tasks.index', [
+        //     'tasks' => $tasks,
+        // ]);
+        
+        $data = [];
+        if (\Auth::check()) { // 認証済みの場合
+            // 認証済みユーザを取得
+            $user = \Auth::user();
+            $tasks = $user->tasks()->orderBy('id', 'asc')->paginate(10);
+            // $tasks = Task::all();
+            
+            $data = [
+                'user' => $user,
+                'tasks' => $tasks,
+            ];
+
+            return view('tasks.index', [
+                'tasks' => $tasks,
+            ]);
+            
+        }
+        // Welcomeビューでそれらを表示
+        return view('welcome');
+        
+    }
 
     /**
      * Show the form for creating a new resource.
@@ -67,7 +89,9 @@ class TasksController extends Controller
         $task = new Task;
         $task->content = $request->content;
         $task->status = $request->status;
+        $task->user_id = \Auth::id();
         $task->save();
+
 
         // トップページへリダイレクトさせる
         return redirect('/');    
@@ -155,9 +179,12 @@ class TasksController extends Controller
     {
         // idの値でメッセージを検索して取得
         $task = Task::findOrFail($id);
-        // メッセージを削除
-        $task->delete();
         
+        // 認証済みユーザ（閲覧者）がその投稿の所有者である場合は、投稿を削除
+        if (\Auth::id() === $task->user_id) {
+            $task->delete();
+        }
+
         // トップページへリダイレクトさせる
         return redirect('/');    
         
